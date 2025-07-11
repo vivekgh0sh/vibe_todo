@@ -182,7 +182,7 @@ function App() {
               💎
             </button>
             <div className="header-content">
-              <h1>My To-Do List</h1>
+              <h1>Vibe To-Do</h1>
               <p>What do you need to get done today?</p>
             </div>
             <button className="theme-switcher" onClick={handleThemeChange} aria-label="Switch theme">
