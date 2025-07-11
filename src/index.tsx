@@ -36,8 +36,8 @@ function App() {
     }
     // Fallback data for first-time users
     return [
-      { id: 1, text: 'Finish project proposal', completed: false, createdAt: new Date(Date.now() - 3600000 * 2) },
-      { id: 2, text: 'Buy groceries', completed: false, createdAt: new Date(Date.now() - 3600000 * 5) },
+      { id: 1, text: 'Experience the new Liquid Glass theme', completed: false, createdAt: new Date() },
+      { id: 2, text: 'Try the other themes with the 🎨 button', completed: false, createdAt: new Date() },
     ];
   });
 
@@ -54,7 +54,6 @@ function App() {
     } catch (error) {
       console.error("Failed to load completed todos from localStorage", error);
     }
-    // Fallback data for first-time users
     return [{ id: 3, text: 'Walk the dog', completed: true, createdAt: new Date(Date.now() - 86400000) }];
   });
 
@@ -65,33 +64,35 @@ function App() {
       if (themes.includes(savedTheme)) {
         return savedTheme;
       }
-    } catch (error) {
-      console.error("Failed to load theme from localStorage", error);
-    }
+    } catch (error) { console.error("Failed to load theme", error); }
     return themes[0];
+  });
+
+  // State for the special Liquid Glass theme
+  const [isGlassMode, setIsGlassMode] = useState(() => {
+     try {
+      return localStorage.getItem('glassMode') === 'true';
+    } catch (error) { console.error("Failed to load glass mode", error); }
+    return false;
   });
   
   const [newTodo, setNewTodo] = useState('');
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
 
-  // --- LOCALSTORAGE EFFECTS ---
-  // Save todos to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('todos', JSON.stringify(todos));
-  }, [todos]);
-
-  // Save completedTodos to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('completedTodos', JSON.stringify(completedTodos));
-  }, [completedTodos]);
+  // --- LOCALSTORAGE & THEME EFFECTS ---
+  useEffect(() => { localStorage.setItem('todos', JSON.stringify(todos)); }, [todos]);
+  useEffect(() => { localStorage.setItem('completedTodos', JSON.stringify(completedTodos)); }, [completedTodos]);
 
   // Apply theme to body and save to localStorage
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(theme);
+    if (isGlassMode) {
+      document.body.classList.add('glass-mode');
+    }
     localStorage.setItem('theme', theme);
-  }, [theme]);
-
+    localStorage.setItem('glassMode', String(isGlassMode));
+  }, [theme, isGlassMode]);
 
   // Cycle through available themes
   const handleThemeChange = () => {
@@ -100,7 +101,6 @@ function App() {
     setTheme(themes[nextIndex]);
   };
   
-  // Handle adding a new to-do manually
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTodo.trim() === '') return;
@@ -114,9 +114,8 @@ function App() {
     setNewTodo('');
   };
 
-  // Handle deleting a to-do item with an animation
   const handleDeleteTodo = (id: number, listType: 'active' | 'completed') => {
-    const animationDuration = 800; // ms, should match CSS animation
+    const animationDuration = 800; 
 
     if (listType === 'active') {
       setTodos(current => current.map(todo => todo.id === id ? { ...todo, animationState: 'deleting' } : todo));
@@ -131,21 +130,12 @@ function App() {
     }
   };
 
-  // Handle completing a task: animate and move to history
   const handleCompleteTodo = (id: number) => {
     const todoToComplete = todos.find((todo) => todo.id === id);
     if (!todoToComplete) return;
+    const animationDuration = 800;
+    setTodos(todos.map((todo) => todo.id === id ? { ...todo, animationState: 'completing' } : todo));
 
-    const animationDuration = 800; // ms, should match CSS animation
-
-    // Add animating class to trigger animation
-    setTodos(
-      todos.map((todo) =>
-        todo.id === id ? { ...todo, animationState: 'completing' } : todo
-      )
-    );
-
-    // After animation, move the task to the completed list
     setTimeout(() => {
       setCompletedTodos((prevCompleted) => [
         { ...todoToComplete, completed: true, animationState: undefined },
@@ -161,33 +151,15 @@ function App() {
       todo.animationState === 'deleting' ? 'animating-delete' : '';
 
     return (
-      <li
-        key={todo.id}
-        className={`${todo.completed ? 'completed' : ''} ${animationClass}`}
-        aria-label={isHistory ? `${todo.text} (completed)` : `Task: ${todo.text}`}
-      >
-        <div 
-          className="todo-checkbox-wrapper"
-          onClick={() => !isHistory && !todo.animationState && handleCompleteTodo(todo.id)}
-          role="button"
-          aria-label={isHistory ? `Task completed` : `Mark ${todo.text} as complete`}
-        >
+      <li key={todo.id} className={`${todo.completed ? 'completed' : ''} ${animationClass}`}>
+        <div className="todo-checkbox-wrapper" onClick={() => !isHistory && !todo.animationState && handleCompleteTodo(todo.id)} role="button">
           <span className="todo-checkbox"></span>
         </div>
         <div className="todo-main">
           <span className="todo-text">{todo.text}</span>
-          <span className="todo-timestamp">
-            {todo.createdAt.toLocaleString()}
-          </span>
+          <span className="todo-timestamp">{todo.createdAt.toLocaleString()}</span>
         </div>
-        <button
-          className="delete-btn"
-          onClick={(e) => {
-            e.stopPropagation(); // Prevent li onClick from firing
-            handleDeleteTodo(todo.id, isHistory ? 'completed' : 'active');
-          }}
-          aria-label={`Delete task: ${todo.text}`}
-        >
+        <button className="delete-btn" onClick={() => handleDeleteTodo(todo.id, isHistory ? 'completed' : 'active')}>
           &times;
         </button>
       </li>
@@ -196,54 +168,50 @@ function App() {
 
   return (
     <main className="app-container">
-      <div className="card">
-        <header className="app-header">
-          <div className="header-content">
-            <h1>My To-Do List</h1>
-            <p>What do you need to get done today?</p>
-          </div>
-          <button className="theme-switcher" onClick={handleThemeChange} aria-label="Switch theme">
-            🎨
-          </button>
-        </header>
-
-        <section>
-          <form onSubmit={handleAddTodo} className="add-todo-form">
-            <input
-              type="text"
-              value={newTodo}
-              onChange={(e) => setNewTodo(e.target.value)}
-              placeholder="Add a new to-do..."
-              aria-label="New to-do item"
-            />
-            <button type="submit" aria-label="Add to-do">+</button>
-          </form>
-        </section>
-
-        <section className="todo-list-section">
-          <ul className="todo-list" aria-live="polite">
-            {todos.map(todo => renderTodoItem(todo))}
-          </ul>
-        </section>
-        
-        {completedTodos.length > 0 && (
-          <section className="history-section">
-            <h2 
-              className="expandable-header" 
-              onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}
-              aria-expanded={isHistoryExpanded}
-              aria-controls="history-list-container"
-            >
-              History
-              <span className={`arrow ${isHistoryExpanded ? 'expanded' : ''}`}>&#9660;</span>
-            </h2>
-            <div id="history-list-container" className={`history-list-container ${isHistoryExpanded ? 'expanded' : ''}`}>
-              <ul className="todo-list history-list" aria-label="Completed tasks">
-                {completedTodos.map(todo => renderTodoItem(todo, true))}
-              </ul>
-            </div>
-          </section>
+      <div className={`card ${isGlassMode ? 'liquidGlass-wrapper' : ''}`}>
+        {isGlassMode && (
+          <>
+            <div className="liquidGlass-effect"></div>
+            <div className="liquidGlass-tint"></div>
+            <div className="liquidGlass-shine"></div>
+          </>
         )}
+        <div className="card-content">
+          <header className="app-header">
+            <button className="glass-switcher" onClick={() => setIsGlassMode(!isGlassMode)} aria-label="Toggle Liquid Glass theme">
+              💎
+            </button>
+            <div className="header-content">
+              <h1>My To-Do List</h1>
+              <p>What do you need to get done today?</p>
+            </div>
+            <button className="theme-switcher" onClick={handleThemeChange} aria-label="Switch theme">
+              🎨
+            </button>
+          </header>
+
+          <section>
+            <form onSubmit={handleAddTodo} className="add-todo-form">
+              <input type="text" value={newTodo} onChange={(e) => setNewTodo(e.target.value)} placeholder="Add a new to-do..."/>
+              <button type="submit">+</button>
+            </form>
+          </section>
+
+          <section className="todo-list-section">
+            <ul className="todo-list">{todos.map(todo => renderTodoItem(todo))}</ul>
+          </section>
+          
+          {completedTodos.length > 0 && (
+            <section className="history-section">
+              <h2 className="expandable-header" onClick={() => setIsHistoryExpanded(!isHistoryExpanded)}>
+                History <span className={`arrow ${isHistoryExpanded ? 'expanded' : ''}`}>&#9660;</span>
+              </h2>
+              <div className={`history-list-container ${isHistoryExpanded ? 'expanded' : ''}`}>
+                <ul className="todo-list history-list">{completedTodos.map(todo => renderTodoItem(todo, true))}</ul>
+              </div>
+            </section>
+          )}
+        </div>
       </div>
     </main>
   );
