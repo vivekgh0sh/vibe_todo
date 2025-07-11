@@ -19,28 +19,79 @@ interface Todo {
 const themes = ['light-default', 'light-serene', 'dark-cool', 'dark-slate'] as const;
 type Theme = typeof themes[number];
 
-// Initial sample data
-const initialTodos: Todo[] = [
-  { id: 1, text: 'Finish project proposal', completed: false, createdAt: new Date(Date.now() - 3600000 * 2) },
-  { id: 2, text: 'Buy groceries', completed: false, createdAt: new Date(Date.now() - 3600000 * 5) },
-];
-const initialCompleted: Todo[] = [
-  { id: 3, text: 'Walk the dog', completed: true, createdAt: new Date(Date.now() - 86400000) }
-];
-
 // Main application component
 function App() {
-  const [todos, setTodos] = useState<Todo[]>(initialTodos);
-  const [completedTodos, setCompletedTodos] = useState<Todo[]>(initialCompleted);
+  // Load todos from localStorage or use initial data as a fallback
+  const [todos, setTodos] = useState<Todo[]>(() => {
+    try {
+      const savedTodos = localStorage.getItem('todos');
+      if (savedTodos) {
+        return JSON.parse(savedTodos).map((todo: any) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt),
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load todos from localStorage", error);
+    }
+    // Fallback data for first-time users
+    return [
+      { id: 1, text: 'Finish project proposal', completed: false, createdAt: new Date(Date.now() - 3600000 * 2) },
+      { id: 2, text: 'Buy groceries', completed: false, createdAt: new Date(Date.now() - 3600000 * 5) },
+    ];
+  });
+
+  // Load completed todos from localStorage or use initial data
+  const [completedTodos, setCompletedTodos] = useState<Todo[]>(() => {
+    try {
+      const savedCompleted = localStorage.getItem('completedTodos');
+      if (savedCompleted) {
+        return JSON.parse(savedCompleted).map((todo: any) => ({
+          ...todo,
+          createdAt: new Date(todo.createdAt),
+        }));
+      }
+    } catch (error) {
+      console.error("Failed to load completed todos from localStorage", error);
+    }
+    // Fallback data for first-time users
+    return [{ id: 3, text: 'Walk the dog', completed: true, createdAt: new Date(Date.now() - 86400000) }];
+  });
+
+  // Load theme from localStorage
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      const savedTheme = localStorage.getItem('theme') as Theme;
+      if (themes.includes(savedTheme)) {
+        return savedTheme;
+      }
+    } catch (error) {
+      console.error("Failed to load theme from localStorage", error);
+    }
+    return themes[0];
+  });
+  
   const [newTodo, setNewTodo] = useState('');
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [theme, setTheme] = useState<Theme>(themes[0]);
 
-  // Apply the current theme to the body
+  // --- LOCALSTORAGE EFFECTS ---
+  // Save todos to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('todos', JSON.stringify(todos));
+  }, [todos]);
+
+  // Save completedTodos to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('completedTodos', JSON.stringify(completedTodos));
+  }, [completedTodos]);
+
+  // Apply theme to body and save to localStorage
   useEffect(() => {
     document.body.className = '';
     document.body.classList.add(theme);
+    localStorage.setItem('theme', theme);
   }, [theme]);
+
 
   // Cycle through available themes
   const handleThemeChange = () => {
